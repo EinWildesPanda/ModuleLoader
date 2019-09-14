@@ -1,21 +1,13 @@
 package de.panda.moduleloader;
 
-import jdk.internal.org.objectweb.asm.tree.ClassNode;
-
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.lang.reflect.Method;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
 import java.util.jar.JarFile;
-import java.util.stream.Collectors;
-
 /*
  * Copyright (c) 2019, #PANDA All Rights Reserved.
  *
@@ -37,7 +29,7 @@ public class ModuleLoader {
 
     public static void main(String[] args)
     {
-        String pathToJar = "ModuleLoader.jar";
+        String pathToJar = "modules/ModuleLoader.jar";
         try {
             loadClasses(pathToJar);
         } catch (IOException e) {
@@ -54,8 +46,12 @@ public class ModuleLoader {
             {
                 try
                 {
-                    Object o= c.newInstance();
-                    Method m =c.getDeclaredMethod("onLoad", null);
+                    Object o = c.newInstance();
+                    Method m = c.getDeclaredMethod("onLoad", null);
+                    m.setAccessible(true);
+                    m.invoke(o, null);
+
+                    m = c.getDeclaredMethod("onDisable", null);
                     m.setAccessible(true);
                     m.invoke(o, null);
                 }
