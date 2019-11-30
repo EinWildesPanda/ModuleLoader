@@ -1,10 +1,10 @@
 package de.panda.moduleloader;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.jar.JarFile;
@@ -26,6 +26,9 @@ import java.util.jar.JarFile;
 public class ModuleLoader {
 
     private static List<Class> classes = new ArrayList<>();
+    private static List<Class> moduleClasses = new ArrayList<>();
+
+    private static List<String> mainNames = new ArrayList<>();
 
     public static void main(String[] args)
     {
@@ -41,7 +44,7 @@ public class ModuleLoader {
 
     private static void findModuleClassAndExecute()
     {
-        classes.forEach(c -> {
+        moduleClasses.forEach(c -> {
             if(Module.class.isAssignableFrom(c))
             {
                 try
@@ -61,7 +64,11 @@ public class ModuleLoader {
                 }
 
 
-        }
+            }
+            else
+            {
+                System.err.println("Module-class isn't actually a module!");
+            }
         });
     }
 
@@ -70,7 +77,13 @@ public class ModuleLoader {
         URLClassLoader cl = URLClassLoader.newInstance(urls);
         parseJar(new File(pathToJar)).forEach(c -> {
             try {
-                classes.add(cl.loadClass(c));
+                if(mainNames.contains(c))
+                {
+                    moduleClasses.add(cl.loadClass(c));
+                }
+                else
+                    classes.add(cl.loadClass(c));
+
             } catch (ClassNotFoundException e) {
                 e.printStackTrace();
             }
@@ -82,13 +95,41 @@ public class ModuleLoader {
         List<String> classNames = new ArrayList<>();
 
         JarFile jarFile = new JarFile(targetJar);
+        //Will be the path in which the main-class will be available
 
         jarFile.stream()
-                .filter(e -> e.getName().endsWith(".class"))
+                .filter(e -> e.getName().endsWith(".class") || e.getName().endsWith(".yml"))
                 .forEach(e -> {
-                    String className = e.getName().substring(0,e.getName().length()-6);
-                    className = className.replace('/', '.');
-                    classNames.add(className);
+                    //check if the file is the module.yml
+                    String mainInfo = "";
+                    if(e.getName().equalsIgnoreCase("module.yml"))
+                    {
+                        try {
+                            //Used to read the content of the .yml
+                            InputStreamReader inputStreamReader = new InputStreamReader(jarFile.getInputStream(e));
+                            BufferedReader reader = new BufferedReader(inputStreamReader);
+                            String line;
+                            while ((line = reader.readLine()) != null) {
+                                //checking if the line is the line we searched
+                                if(line.contains("main-class:"))
+                                {
+                                    //temporarily set the main-class
+                                    mainInfo = line.replace("main-class: ", "").replace('/', '.');
+                                    mainNames.add(mainInfo);
+                                }
+                            }
+                        } catch (IOException ex) {
+                            ex.printStackTrace();
+                        }
+                    }
+                    else
+                    {
+                        String className = e.getName().substring(0,e.getName().length()-6);
+                        //check if the class is the main-class
+                        className = className.replace('/', '.');
+                        classNames.add(className);
+                    }
+
                 });
 
         return classNames;

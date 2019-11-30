@@ -1,8 +1,5 @@
 package de.panda.moduleloader;
 
-import de.panda.moduleloader.Module;
-import sun.security.pkcs11.Secmod;
-
 /*
  * Copyright (c) 2019, #PANDA All Rights Reserved.
  *
