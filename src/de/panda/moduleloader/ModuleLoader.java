@@ -1,12 +1,15 @@
 package de.panda.moduleloader;
 
 import java.io.*;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.jar.JarFile;
 /*
  * Copyright (c) 2019, #PANDA All Rights Reserved.
@@ -25,8 +28,10 @@ import java.util.jar.JarFile;
  */
 public class ModuleLoader {
 
-    private static List<Class> classes = new ArrayList<>();
-    private static List<Class> moduleClasses = new ArrayList<>();
+    private static HashMap<String, Class> classes = new HashMap<>();
+    //main : module-class
+    private static HashMap<Class, Class> moduleClasses = new HashMap<>();
+    private static List<Class> mainClasses = new ArrayList<>();
 
     private static List<String> mainNames = new ArrayList<>();
 
@@ -50,21 +55,22 @@ public class ModuleLoader {
 
     private static void findModuleClassAndExecute()
     {
-        moduleClasses.forEach(c -> {
-            if(Module.class.isAssignableFrom(c))
+        mainClasses.forEach(clazz -> {
+
+            if(moduleClasses.get(clazz).isAssignableFrom(clazz))
             {
                 try
                 {
-                    Object o = c.newInstance();
-                    Method m = c.getDeclaredMethod("onLoad", null);
+                    Object o = clazz.newInstance();
+                    Method m = clazz.getDeclaredMethod("onLoad", null);
                     m.setAccessible(true);
                     m.invoke(o, null);
 
-                    m = c.getDeclaredMethod("onDisable", null);
+                    m = clazz.getDeclaredMethod("onDisable", null);
                     m.setAccessible(true);
                     m.invoke(o, null);
                 }
-                catch(Exception e)
+                catch(InvocationTargetException | IllegalAccessException | NoSuchMethodException | InstantiationException e)
                 {
                     e.printStackTrace();
                 }
@@ -87,14 +93,47 @@ public class ModuleLoader {
 
         URL[] urls = { new URL("jar:file:" + pathToJar+"!/") };
         URLClassLoader cl = URLClassLoader.newInstance(urls);
+
+        AtomicReference<String> moduleClass = new AtomicReference<>("");
+        AtomicReference<String> mainClazz = new AtomicReference<>("");
+
         parseJar(new File(pathToJar)).forEach(c -> {
             try {
                 if(mainNames.contains(c))
                 {
-                    moduleClasses.add(cl.loadClass(c));
+                    //used to know if the main-class was already found and using the name to register the module class
+                    mainClazz.set(c);
+                    Class mainClass = cl.loadClass(c);
+
+                    mainClasses.add(mainClass);
+
+                    //the module-class was found; so add id to the hashmap with the correct main-class
+                    if(!moduleClass.get().isEmpty())
+                    {
+                        moduleClasses.put(mainClass, cl.loadClass(moduleClass.get()));
+                    }
                 }
                 else
-                    classes.add(cl.loadClass(c));
+                {
+                    //checking if module is the last word in the classname
+                    if(c.lastIndexOf("Module") == c.length()-6)
+                    {
+                        //checking if the main class was found
+                        if(!mainClazz.get().isEmpty())
+                        {
+                            //it was found; so add the module to the hashmap
+                            moduleClasses.put(cl.loadClass(mainClazz.get()), cl.loadClass(c));
+                        }
+                        else
+                        {
+                            //it wasn't found; so set the name of the module-class
+                            moduleClass.set(c);
+                        }
+                    }
+
+                    //get className
+                    classes.put(c, cl.loadClass(c));
+                }
 
             } catch (ClassNotFoundException e) {
                 e.printStackTrace();
