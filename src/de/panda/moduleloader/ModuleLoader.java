@@ -32,13 +32,19 @@ public class ModuleLoader {
 
     public static void main(String[] args)
     {
-        String pathToJar = "modules/ModuleLoader.jar";
         try {
-            loadClasses(pathToJar);
+            Files.list(new File("modules/").toPath()).forEach(path ->
+            {
+                String pathToModule = path.toString();
+                try {
+                    loadClasses(pathToModule);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
         } catch (IOException e) {
             e.printStackTrace();
         }
-
         findModuleClassAndExecute();
     }
 
@@ -73,6 +79,12 @@ public class ModuleLoader {
     }
 
     private static void loadClasses(String pathToJar) throws IOException {
+        //file isn't a jar; just ignore it
+        if(!pathToJar.contains(".jar"))
+        {
+            return;
+        }
+
         URL[] urls = { new URL("jar:file:" + pathToJar+"!/") };
         URLClassLoader cl = URLClassLoader.newInstance(urls);
         parseJar(new File(pathToJar)).forEach(c -> {
