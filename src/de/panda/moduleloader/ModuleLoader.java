@@ -107,7 +107,7 @@ public class ModuleLoader {
 
                     mainClasses.add(mainClass);
 
-                    //the module-class was found; so add id to the hashmap with the correct main-class
+                    //the module-class was found; so add it to the hashmap with the correct main-class
                     if(!moduleClass.get().isEmpty())
                     {
                         moduleClasses.put(mainClass, cl.loadClass(moduleClass.get()));
