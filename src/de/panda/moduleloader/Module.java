@@ -17,10 +17,10 @@ package de.panda.moduleloader;
  */
 public abstract class Module {
 
-    abstract void onLoad();
+    public abstract void onLoad();
 
-    abstract void onDisable();
+    public abstract void onDisable();
 
-    abstract void onReload();
+    public abstract void onReload();
 
 }
